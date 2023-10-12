@@ -1,5 +1,5 @@
-// #ifndef ZKFC_CUH
-// #define ZKFC_CUH
+#ifndef ZKFC_CUH
+#define ZKFC_CUH
 
 // #include <torch/torch.h>
 // #include <torch/script.h>
@@ -175,4 +175,4 @@
 
 
 
-// #endif  // ZKFC_CUH
+#endif  // ZKFC_CUH

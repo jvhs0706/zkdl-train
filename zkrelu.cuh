@@ -10,20 +10,6 @@ const uint zkReLU_Q = 32;
 const uint zkReLU_R = 16;
 const uint zkReLU_B = zkReLU_Q + zkReLU_R;
 
-class zkReLU {
-protected:
-    const uint size;
-    FrTensor Z;
-    FrTensor GA;
-
-    FrTensor A;
-    FrTensor GZ;
-    
-    FrTensor aux;
-public:
-    zkReLU(const FrTensor& Z, const FrTensor& GA);
-};
-
 DEVICE long scalar_to_long(Fr_t num){
     if (num.val[7] == 1944954707U) {
         Fr_t abs = blstrs__scalar__Scalar_sub({0, 0, 0, 0, 0, 0, 0, 0}, num);
@@ -47,7 +33,6 @@ DEVICE long rescale(long num){
     return num;
 }
 
-// Broadcast montegomery multiplication
 KERNEL void zkReLU_init_kernel(GLOBAL Fr_t* Z_ptr, GLOBAL Fr_t* GA_ptr, GLOBAL Fr_t* A_ptr, GLOBAL Fr_t* GZ_ptr, GLOBAL Fr_t* aux_ptr, uint n)
 {
     const uint gid = GET_GLOBAL_ID();
@@ -64,13 +49,55 @@ KERNEL void zkReLU_init_kernel(GLOBAL Fr_t* Z_ptr, GLOBAL Fr_t* GA_ptr, GLOBAL F
     }
 }
 
-zkReLU(const FrTensor& Z, const FrTensor& GA): size(Z.size), Z(Z), GA(GA), GZ(Z.size), A(GA.size), aux(2 * Z.size * (zkReLU_Q + zkReLU_R))
+class zkReLU {
+public:
+    const uint size;
+    FrTensor Z;
+    FrTensor GA;
+
+    FrTensor A;
+    FrTensor GZ;
+    
+    FrTensor aux;
+
+    zkReLU(const FrTensor& Z, const FrTensor& GA);
+};
+
+
+
+zkReLU::zkReLU(const FrTensor& Z, const FrTensor& GA): size(Z.size), Z(Z), GA(GA), GZ(Z.size), A(GA.size), aux(2 * Z.size * (zkReLU_Q + zkReLU_R))
 {
     // make sure the four inputs are of the same size
     if (GA.size != size) throw std::invalid_argument("Z and GA must be of the same size");
     zkReLU_init_kernel<<<(size+FrNumThread-1)/FrNumThread,FrNumThread>>>(Z.gpu_data, GA.gpu_data, A.gpu_data, GZ.gpu_data, aux.gpu_data, size);
     cudaDeviceSynchronize();
+    this -> Z.mont();
+    this -> GA.mont();
+    this -> GZ.mont();
+    this -> A.mont();
 }
+
+// KERNEL void zkReLU_phase1_kernel(GLOBAL Fr_t* Z_ptr, GLOBAL Fr_t* GA_ptr, GLOBAL Fr_t* A_ptr, GLOBAL Fr_t* GZ_ptr, GLOBAL Fr_t* aux_ptr, 
+//     GLOBAL Fr_t* out0, GLOBAL Fr_t* out1, GLOBAL Fr_t* out2, Fr_t r, Fr_t r_, Fr_t w, uint in_size, uint out_size)
+// {
+//     const uint gid = GET_GLOBAL_ID();
+//     if (gid >= out_size) return;
+
+//     uint gid0 = 2 * gid;
+//     uint gid1 = 2 * gid + 1;
+
+//     Fr_t z0 = Z_ptr[gid0];
+//     Fr_t z1 = blstrs__scalar__Scalar_sub(Z_ptr[gid1], Z_ptr[gid0]) if (gid1 < in_size) else blstrs__scalar__Scalar_sub(blstrs__scalar__Scalar_ZERO, Z_ptr[gid0]);
+
+//     Fr_t a0 = blstrs__scalar__Scalar_mul
+//     Fr_t a1 = blstrs__scalar__Scalar_sub(Z_ptr[gid1], Z_ptr[gid0]);
+
+
+
+//     out0[gid] = blstrs__scalar__Scalar_mul(Z_ptr[gid0], r);
+//     out1[gid] = blstrs__scalar__Scalar_mul(Z_ptr[gid1], r);
+//     out2[]
+// }
 
 
 #endif  // ZKRELU_CUH

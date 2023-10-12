@@ -107,6 +107,7 @@ class G1TensorJacobian;
 class Commitment;
 class zkFC;
 class zkReLU;
+class zkMatMul;
 
 // define the class FrTensor
 
@@ -289,6 +290,7 @@ class FrTensor
     friend class Commitment;
     friend class zkFC;
     friend class zkReLU;
+    friend class zkMatMul;
 };
 
 KERNEL void Fr_sum_reduction(GLOBAL Fr_t *arr, GLOBAL Fr_t *output, uint n) {
