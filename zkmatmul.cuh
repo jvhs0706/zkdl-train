@@ -20,7 +20,7 @@ public:
 
     static std::pair<FrTensor, FrTensor> reduce(const FrTensor& A, const FrTensor& B, uint num, uint m, uint n, uint k);
     static std::pair<FrTensor, FrTensor> phase1(const FrTensor& A_reduced, const FrTensor& B_reduced, uint num, uint n, vector<Fr_t>::const_iterator u_begin, vector<Fr_t>::const_iterator u_end, vector<Fr_t>::const_iterator v_begin, vector<Fr_t>::const_iterator v_end, vector<Fr_t>& proof);
-    void prove(const vector<Fr_t>& u_num, const vector<Fr_t>& v_num, const vector<Fr_t>& u_m, const vector<Fr_t>& u_n, const vector<Fr_t>& u_k, const Commitment& genA, const Commitment& genB);
+    void prove(const Commitment& genA, const Commitment& genB);
 };
 
 // KERNEL void zkMatMul_phase1_kernel(GLOBAL Fr_t* Z_ptr, GLOBAL Fr_t* GA_ptr, GLOBAL Fr_t* A_ptr, GLOBAL Fr_t* GZ_ptr, GLOBAL Fr_t* aux_ptr, uint n)
@@ -86,8 +86,14 @@ std::pair<FrTensor, FrTensor> zkMatMul::phase1(const FrTensor& A_reduced, const 
     return phase1(a_new, b_new, out_num, n, u_begin + 1, u_end, v_begin + 1, v_end, proof);
 }
 
-void zkMatMul::prove(const vector<Fr_t>& u_num, const vector<Fr_t>& v_num, const vector<Fr_t>& u_m, const vector<Fr_t>& u_n, const vector<Fr_t>& u_k, const Commitment& genA, const Commitment& genB)
+void zkMatMul::prove(const Commitment& genA, const Commitment& genB)
 {
+    auto u_num = random_vec(ceilLog2(num));
+    auto v_num = random_vec(ceilLog2(num));
+    auto u_m = random_vec(ceilLog2(m));
+    auto u_n = random_vec(ceilLog2(n));
+    auto u_k = random_vec(ceilLog2(k));
+    
     auto A_reduced = Fr_partial_me(A, u_m.begin(), u_m.end(), n); // num * n
     auto B_reduced = Fr_partial_me(B, u_k.begin(), u_k.end(), 1); // num * n
     vector<Fr_t> proof;

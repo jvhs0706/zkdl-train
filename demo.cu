@@ -42,7 +42,7 @@ int main(int argc, char *argv[])
     cout << "Commit time: " << timer.getTotalTime() << " seconds." << endl;
     timer.reset();
     timer.start(); 
-    matmul.prove(random_vec(ceilLog2(num)), random_vec(ceilLog2(num)), random_vec(ceilLog2(m)), random_vec(ceilLog2(n)), random_vec(ceilLog2(k)), genA, genB);
+    matmul.prove(genA, genB);
     timer.stop();
     cout << "Proof time: " << timer.getTotalTime() << " seconds." << endl;
     timer.reset();
