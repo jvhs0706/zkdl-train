@@ -3,19 +3,24 @@
 #include <cuda_runtime.h>
 #include "bls12-381.cuh"  // adjust this to point to the blstrs header file
 #include "fr-tensor.cuh" 
+#include "g1-tensor.cuh"
 #include "proof.cuh"
+#include "timer.hpp"
+#include "commitment.cuh"
 
 class zkMatMul {
 public:
     FrTensor A, B;
     uint num, m, n, k;
-    zkMatMul(const FrTensor& A, const FrTensor& B, uint num, uint m, uint n, uint k): A(A), B(B), num(num), m(m), n(n), k(k) {
+    G1TensorJacobian comA, comB;
+    zkMatMul(const FrTensor& A, const FrTensor& B, uint num, uint m, uint n, uint k, Commitment& genA, Commitment& genB): A(A), B(B), num(num), m(m), n(n), k(k), comA(genA.commit(A)), comB(genB.commit(B)) {
         if (A.size != num * m * n || B.size != num * n * k) throw std::runtime_error("size mismatch");
+        cout << "Commitment size: " << comA.size + comB.size << endl;
     }
 
     static std::pair<FrTensor, FrTensor> reduce(const FrTensor& A, const FrTensor& B, uint num, uint m, uint n, uint k);
     static std::pair<FrTensor, FrTensor> phase1(const FrTensor& A_reduced, const FrTensor& B_reduced, uint num, uint n, vector<Fr_t>::const_iterator u_begin, vector<Fr_t>::const_iterator u_end, vector<Fr_t>::const_iterator v_begin, vector<Fr_t>::const_iterator v_end, vector<Fr_t>& proof);
-    void prove(vector<Fr_t> u_num, vector<Fr_t> v_num, vector<Fr_t> u_m, vector<Fr_t> u_n, vector<Fr_t> u_k);
+    void prove(const vector<Fr_t>& u_num, const vector<Fr_t>& v_num, const vector<Fr_t>& u_m, const vector<Fr_t>& u_n, const vector<Fr_t>& u_k, const Commitment& genA, const Commitment& genB);
 };
 
 // KERNEL void zkMatMul_phase1_kernel(GLOBAL Fr_t* Z_ptr, GLOBAL Fr_t* GA_ptr, GLOBAL Fr_t* A_ptr, GLOBAL Fr_t* GZ_ptr, GLOBAL Fr_t* aux_ptr, uint n)
@@ -81,7 +86,7 @@ std::pair<FrTensor, FrTensor> zkMatMul::phase1(const FrTensor& A_reduced, const 
     return phase1(a_new, b_new, out_num, n, u_begin + 1, u_end, v_begin + 1, v_end, proof);
 }
 
-void zkMatMul::prove(vector<Fr_t> u_num, vector<Fr_t> v_num, vector<Fr_t> u_m, vector<Fr_t> u_n, vector<Fr_t> u_k)
+void zkMatMul::prove(const vector<Fr_t>& u_num, const vector<Fr_t>& v_num, const vector<Fr_t>& u_m, const vector<Fr_t>& u_n, const vector<Fr_t>& u_k, const Commitment& genA, const Commitment& genB)
 {
     auto A_reduced = Fr_partial_me(A, u_m.begin(), u_m.end(), n); // num * n
     auto B_reduced = Fr_partial_me(B, u_k.begin(), u_k.end(), 1); // num * n
@@ -92,6 +97,9 @@ void zkMatMul::prove(vector<Fr_t> u_num, vector<Fr_t> v_num, vector<Fr_t> u_m, v
     auto phase_2_proof = inner_product_sumcheck(a, b, u_n);
     proof.insert(proof.end(), phase_2_proof.begin(), phase_2_proof.end());
     cout << "zkMatMul sumcheck proof size: " << proof.size() << endl;
+
+    genA.open(A, comA, concatenate<Fr_t>({u_n, u_m, v_num}));
+    genB.open(B, comB, concatenate<Fr_t>({u_k, u_n, v_num}));
 }
 
 #endif

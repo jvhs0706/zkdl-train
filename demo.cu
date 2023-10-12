@@ -29,21 +29,39 @@ int main(int argc, char *argv[])
     uint n = stoi(argv[3]);
     uint k = stoi(argv[4]);
 
-    auto A = FrTensor::random_int(num * m * n, 32);
-    auto B = FrTensor::random_int(num * n * k, 32);
+    auto A = FrTensor::random_int(num * m * n, 32).mont();
+    auto B = FrTensor::random_int(num * n * k, 32).mont();
 
-    zkMatMul matmul(A, B, num, m, n, k);
-    matmul.prove(random_vec(ceilLog2(num)), random_vec(ceilLog2(num)), random_vec(ceilLog2(m)), random_vec(ceilLog2(n)), random_vec(ceilLog2(k)));
+    auto genA = Commitment::random_generators(1 << (ceilLog2(num * m * n)/2 + 1));
+    auto genB = Commitment::random_generators(1 << (ceilLog2(num * n * k)/2 + 1));
+
+    Timer timer;
+    timer.start();
+    zkMatMul matmul(A, B, num, m, n, k, genA, genB);
+    timer.stop();
+    cout << "Commit time: " << timer.getTotalTime() << " seconds." << endl;
+    timer.reset();
+    timer.start(); 
+    matmul.prove(random_vec(ceilLog2(num)), random_vec(ceilLog2(num)), random_vec(ceilLog2(m)), random_vec(ceilLog2(n)), random_vec(ceilLog2(k)), genA, genB);
+    timer.stop();
+    cout << "Proof time: " << timer.getTotalTime() << " seconds." << endl;
+    timer.reset();
+    cout << "Current CUDA status: " << cudaGetLastError() << endl;
 
 
-    // uint relu_size = stoi(argv[1]);
-    // auto Z = FrTensor::random_int(relu_size, 32);
-    // auto GA = FrTensor::random_int(relu_size, 32);
-    // cout << Z << endl;
-    // cout << GA << endl;
-    // zkReLU relu(Z, GA);
-    // cout << relu.A << endl;
-    // cout << relu.GZ << endl;
+    // Testing zkReLU
+    uint relu_dim = stoi(argv[5]);
+    auto Z = FrTensor::random_int(relu_dim, 32);
+    auto GA = FrTensor::random_int(relu_dim, 32);
 
-    // cout << relu.aux << endl;
+    auto gen_relu = Commitment::random_generators(1 << (ceilLog2(relu_dim)/2 + 4));
+    timer.start();
+    zkReLU relu(Z, GA, gen_relu);
+    timer.stop();
+    cout << "zkReLU commit time: " << timer.getTotalTime() << " seconds." << endl;
+    timer.reset();
+    timer.start();
+    relu.prove(gen_relu);
+    timer.stop();
+    cout << "zkReLU proof time: " << timer.getTotalTime() << " seconds." << endl;
 }

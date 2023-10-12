@@ -12,7 +12,7 @@ LIBS := -L$(CUDA_PATH)/lib64 -lcudart # -L$(LIBTORCH_PATH)/lib -ltorch -ltorch_c
 
 
 # NVCC compiler flags
-NVCC_FLAGS := -arch=sm_60
+NVCC_FLAGS := -arch=sm_80
 
 # Source and target files
 SRCS := $(wildcard *.cu)

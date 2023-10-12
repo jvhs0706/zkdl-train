@@ -17,6 +17,8 @@ class Commitment: public G1TensorJacobian
 
     G1TensorJacobian commit(const FrTensor& t) const;
 
+    static Commitment random_generators(uint size);
+
     Fr_t open(const FrTensor& t, const G1TensorJacobian& c, const vector<Fr_t>& u) const;
 
     static Fr_t me_open(const FrTensor& t, const Commitment& generators, vector<Fr_t>::const_iterator begin, vector<Fr_t>::const_iterator end, vector<G1Jacobian_t>& proof);
@@ -111,6 +113,13 @@ Fr_t Commitment::open(const FrTensor& t, const G1TensorJacobian& com, const vect
     if (size != (1 << u_in.size())) throw std::runtime_error("Incompatible dimensions");
     vector<G1Jacobian_t> proof;
     return me_open(t.partial_me(u_out, 1 << u_in.size()), *this, u_in.begin(), u_in.end(), proof);
+}
+
+Commitment Commitment::random_generators(uint size)
+{
+    Commitment out(size, G1Jacobian_generator);
+    out *= FrTensor::random(size);
+    return out; 
 }
 
 #endif
