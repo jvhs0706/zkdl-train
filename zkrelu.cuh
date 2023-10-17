@@ -67,13 +67,16 @@ public:
     FrTensor aux;
     G1TensorJacobian* com_ptr;
 
-    zkReLU(const FrTensor& Z, const FrTensor& GA, const Commitment& com);
+    Timer &p_timer, &v_timer;
+
+    zkReLU(const FrTensor& Z, const FrTensor& GA, const Commitment& com, Timer& p_timer, Timer& v_timer, uint& commit_size_count);
     ~zkReLU() {delete com_ptr;}
-    void prove(const Commitment& gen);
+    void prove(const Commitment& gen, uint& proof_size_count);
 };
 
 
-zkReLU::zkReLU(const FrTensor& Z, const FrTensor& GA, const Commitment& gen): size(Z.size), Z(Z), GA(GA), GZ(Z.size), A(GA.size), aux(2 * Z.size * zkReLU_UB), com_ptr(nullptr)
+zkReLU::zkReLU(const FrTensor& Z, const FrTensor& GA, const Commitment& gen, Timer& p_timer, Timer& v_timer, uint& commit_size_count): 
+    size(Z.size), Z(Z), GA(GA), GZ(Z.size), A(GA.size), aux(2 * Z.size * zkReLU_UB), com_ptr(nullptr), p_timer(p_timer), v_timer(v_timer)
 {
     // make sure the four inputs are of the same size
     if (GA.size != size) throw std::invalid_argument("Z and GA must be of the same size");
@@ -84,7 +87,8 @@ zkReLU::zkReLU(const FrTensor& Z, const FrTensor& GA, const Commitment& gen): si
     this -> GZ.mont();
     this -> A.mont();
     com_ptr = new G1TensorJacobian(gen.commit(aux));
-    cout << "Commitment size:" << com_ptr -> size << endl;
+    commit_size_count += com_ptr -> size;
+    //cout << "Commitment size:" << com_ptr -> size << endl;
 }
 
 KERNEL void s_kernel(Fr_t* s, Fr_t r, Fr_t r_)
@@ -114,8 +118,9 @@ KERNEL void s_kernel(Fr_t* s, Fr_t r, Fr_t r_)
     }
 }
 
-void zkReLU::prove(const Commitment& gen)
-{
+void zkReLU::prove(const Commitment& gen, uint& proof_size_count)
+{   
+    p_timer.start();
     auto& com = *com_ptr;
     vector <Fr_t> proof;
     // cout << aux.size << " " << u_bin.size() << " " << v_bin.size() << endl;
@@ -135,8 +140,11 @@ void zkReLU::prove(const Commitment& gen)
     proof.insert(proof.end(), bin_proof.begin(), bin_proof.end());
     proof.insert(proof.end(), proof_recover.begin(), proof_recover.end());
     
-    cout << "zkReLU sumcheck proof size = " << proof.size() << endl;
-    gen.open(aux, com, u_bin);
+    proof_size_count += proof.size();
+    v_timer.start();
+    gen.open(aux, com, u_bin, proof_size_count);
+    v_timer.stop();
+    p_timer.stop();
 
     // s_kernel<<<1,zkReLU_UB>>>(s.gpu_data, {0, 0, 0, 0, 0, 0, 0, 0}, {4294967294, 1, 215042, 1485092858, 3971764213, 2576109551, 2898593135, 405057881});
     // cudaDeviceSynchronize();
