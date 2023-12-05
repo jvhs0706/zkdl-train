@@ -9,6 +9,4 @@
 !README.md
 !/images
 !/images/*
-!CMakeLists.txt
-!*.py
-!demo.shimpo
+!CMakeLists.txts
